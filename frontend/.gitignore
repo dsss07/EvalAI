@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+venv/
+.venv/
+env/
+
+# Build & Distributables
+dist/
+dist-ssr/
+build/
+*.egg-info/
+
+# Environment & Secrets (CRITICAL for security)
+.env
+*.env
+.env.*
+!.env.example
+
+# Python Cache & Compiled Files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Local Storage & Databases (SQLite, uploads, models)
+*.db
+*.sqlite3
+uploads/
+scans/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS & Editor Directories
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

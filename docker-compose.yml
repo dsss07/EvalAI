@@ -1,0 +1,57 @@
+services:
+    db:
+        image: postgres:17-alpine
+        environment:
+            POSTGRES_DB: answer_eval
+            POSTGRES_USER: evaluser
+            POSTGRES_PASSWORD: evalpass
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+
+    python-service:
+        build: ./python-service
+        ports:
+            - "8001:8001"
+
+    rabbitmq:
+        image: rabbitmq:3-management-alpine
+        ports:
+            - "5672:5672"
+            - "15672:15672"
+        environment:
+            RABBITMQ_DEFAULT_USER: guest
+            RABBITMQ_DEFAULT_PASS: guest
+
+    backend:
+        build: ./backend
+        depends_on:
+            - db
+            - python-service
+            - rabbitmq
+        environment:
+            DATABASE_URL: jdbc:postgresql://db:5432/answer_eval
+            DATABASE_USERNAME: evaluser
+            DATABASE_PASSWORD: evalpass
+            GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+            JWT_SECRET: ${JWT_SECRET:-change-this-secret-to-a-long-random-value-at-least-32-bytes}
+            CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+            UPLOAD_DIRECTORY: /app/uploads
+            PYTHON_SERVICE_URL: http://python-service:8001
+            RABBITMQ_HOST: rabbitmq
+        ports:
+            - "8080:8080"
+        volumes:
+            - uploads:/app/uploads
+
+    frontend:
+        build: ./frontend
+        depends_on:
+            - backend
+        ports:
+            - "5173:80"
+
+volumes:
+    postgres_data:
+    uploads:
