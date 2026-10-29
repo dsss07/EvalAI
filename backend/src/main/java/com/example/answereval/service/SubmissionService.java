@@ -287,13 +287,22 @@ public class SubmissionService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Score is outside the allowed range");
         }
 
-        Grade grade = new Grade();
-        grade.setSubmission(submission);
-        grade.setGraderType(GraderType.TEACHER);
+        Grade grade = gradeRepository.findBySubmissionIdOrderByCreatedAtDesc(submissionId).stream()
+                .filter(g -> g.getGraderType() == GraderType.TEACHER)
+                .findFirst()
+                .orElseGet(() -> {
+                    Grade g = new Grade();
+                    g.setSubmission(submission);
+                    g.setGraderType(GraderType.TEACHER);
+                    return g;
+                });
+
         grade.setGrader(teacher);
-        grade.setScore(request.score());
+        double snappedScore = Math.max(0.0, Math.min(submission.getQuestion().getMaxMarks(), Math.round(request.score() * 2.0) / 2.0));
+        grade.setScore(snappedScore);
         grade.setMaxScore(submission.getQuestion().getMaxMarks());
         grade.setBreakdown(Map.of("remarks", request.remarks() == null ? "" : request.remarks()));
+        grade.setCreatedAt(OffsetDateTime.now());
         Grade saved = gradeRepository.save(grade);
 
         submission.setFinalSubmission(true);
@@ -377,7 +386,7 @@ public class SubmissionService {
         if (evaluationReportService != null) {
             evaluationReportService.autoResolveForSubmission(saved);
         }
-        return toResponse(saved, false);
+        return toResponse(saved, true);
     }
 
     private void scheduleEvaluation(UUID submissionId) {

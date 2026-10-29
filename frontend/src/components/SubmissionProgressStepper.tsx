@@ -33,7 +33,7 @@ const STEPS: StepItem[] = [
     id: 3,
     label: "Semantic Scoring",
     description: "Keywords & AI rubric evaluation",
-    minPercentage: 75,
+    minPercentage: 60,
     stages: ["SCORING_IN_PROGRESS"],
   },
   {
@@ -53,15 +53,28 @@ export default function SubmissionProgressStepper({
   error,
 }: SubmissionProgressStepperProps) {
   const isFailed = currentStage === "FAILED" || Boolean(error);
+  const parsedPercentage = Number(progressPercentage);
+  const safePercentage = isNaN(parsedPercentage)
+    ? (currentStage === "GRADED" ? 100 : 10)
+    : parsedPercentage;
+
   const percentage = isFailed
-    ? Math.max(progressPercentage, 10)
-    : Math.min(Math.max(progressPercentage, 10), 100);
+    ? Math.max(safePercentage, 10)
+    : Math.min(Math.max(safePercentage, 10), 100);
+
+  const isCompleted = percentage >= 100 || currentStage === "GRADED";
 
   const getStepState = (stepIndex: number) => {
     if (isFailed) {
       return "failed";
     }
-    const currentStepIndex = STEPS.findIndex((s, idx) => {
+
+    if (isCompleted) {
+      return "completed";
+    }
+
+    const stageIndex = STEPS.findIndex((s) => s.stages.includes(currentStage));
+    const percentIndex = STEPS.findIndex((s, idx) => {
       const next = STEPS[idx + 1];
       if (next) {
         return percentage >= s.minPercentage && percentage < next.minPercentage;
@@ -69,9 +82,8 @@ export default function SubmissionProgressStepper({
       return percentage >= s.minPercentage;
     });
 
-    if (percentage >= 100 || currentStage === "GRADED") {
-      return "completed";
-    }
+    const currentStepIndex = Math.max(stageIndex, percentIndex);
+
     if (stepIndex < currentStepIndex) {
       return "completed";
     }
@@ -94,14 +106,14 @@ export default function SubmissionProgressStepper({
               className={`text-xs px-2.5 py-0.5 rounded-full border uppercase tracking-wider font-semibold ${
                 isFailed
                   ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800"
-                  : percentage === 100
+                  : isCompleted
                   ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800"
                   : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
               }`}
             >
               {isFailed
                 ? "Failed"
-                : percentage === 100
+                : isCompleted
                 ? "Completed"
                 : "In Progress"}
             </span>
@@ -113,7 +125,7 @@ export default function SubmissionProgressStepper({
 
         <div className="flex items-baseline gap-1.5 self-start sm:self-auto">
           <span className="text-3xl font-extrabold text-blue-600 dark:text-blue-400">
-            {percentage}%
+            {isCompleted ? 100 : percentage}%
           </span>
           <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
             Complete
@@ -127,11 +139,11 @@ export default function SubmissionProgressStepper({
           className={`h-full transition-all duration-700 ease-out rounded-full ${
             isFailed
               ? "bg-rose-500"
-              : percentage === 100
+              : isCompleted
               ? "bg-emerald-500"
               : "bg-blue-600"
           }`}
-          style={{ width: `${percentage}%` }}
+          style={{ width: `${isCompleted ? 100 : percentage}%` }}
         />
       </div>
 

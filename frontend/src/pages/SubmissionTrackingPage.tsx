@@ -21,11 +21,54 @@ export default function SubmissionTrackingPage() {
   const setId =
     querySetId || (submission as any)?.question?.questionSet?.id || undefined;
 
+  const [maxPercentage, setMaxPercentage] = useState<number>(10);
+  const [highestStage, setHighestStage] = useState<string>("QUEUED");
+  const [latestMessage, setLatestMessage] = useState<string>(
+    "Connecting to real-time evaluation pipeline..."
+  );
+
+  const STAGE_ORDER: Record<string, number> = {
+    QUEUED: 1,
+    OCR_IN_PROGRESS: 2,
+    OCR_COMPLETED: 2,
+    SCORING_IN_PROGRESS: 3,
+    GRADED: 4,
+    FAILED: 5,
+  };
+
   // Real-time STOMP WebSocket progress hook
   const { event, connected, error: socketError } = useSubmissionProgress({
     submissionId,
     questionSetId: setId,
   });
+
+  useEffect(() => {
+    if (event) {
+      if (event.message) {
+        setLatestMessage(event.message);
+      }
+      const rawPct =
+        event.progressPercentage ?? (event as any).progress_percentage;
+      const parsedPct =
+        typeof rawPct === "number" ? rawPct : parseFloat(rawPct);
+      const safePct = !isNaN(parsedPct) ? parsedPct : 10;
+
+      setMaxPercentage((prev) => Math.max(isNaN(prev) ? 10 : prev, safePct));
+      setHighestStage((prev) => {
+        const prevOrder = STAGE_ORDER[prev] || 0;
+        const newOrder = STAGE_ORDER[event.stage] || 0;
+        return newOrder >= prevOrder ? event.stage : prev;
+      });
+    }
+  }, [event]);
+
+  useEffect(() => {
+    if (submission?.grades && submission.grades.length > 0) {
+      setMaxPercentage(100);
+      setHighestStage("GRADED");
+      setLatestMessage("Evaluation completed.");
+    }
+  }, [submission]);
 
   useEffect(() => {
     if (submissionId) {
@@ -46,12 +89,10 @@ export default function SubmissionTrackingPage() {
     }
   }, [submissionId]);
 
-  const currentStage =
-    event?.stage || (submission?.grades?.length ? "GRADED" : "QUEUED");
-  const progressPercentage =
-    event?.progressPercentage ?? (currentStage === "GRADED" ? 100 : 10);
+  const currentStage = highestStage;
+  const progressPercentage = maxPercentage;
   const message =
-    event?.message ||
+    latestMessage ||
     (connected
       ? "Connected to real-time evaluator. Awaiting OCR / scoring pipeline..."
       : "Connecting to real-time evaluation pipeline...");

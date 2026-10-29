@@ -326,7 +326,7 @@ export default function StudentExamModal({
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                          Q{q.order || idx + 1}
+                          Q{q.order && q.order > 0 ? q.order : idx + 1}
                         </span>
                         {isSubmitted && (
                           <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">

@@ -13,6 +13,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -45,7 +46,27 @@ public class SubmissionScoringListener {
         UUID setId = sub != null && sub.getQuestion() != null && sub.getQuestion().getQuestionSet() != null
                 ? sub.getQuestion().getQuestionSet().getId()
                 : null;
-        int questionOrder = sub != null && sub.getQuestion() != null ? sub.getQuestion().getQuestionOrder() : 1;
+        UUID studentId = sub != null && sub.getStudent() != null ? sub.getStudent().getId() : null;
+        int questionOrder = sub != null && sub.getQuestion() != null && sub.getQuestion().getQuestionOrder() != null && sub.getQuestion().getQuestionOrder() > 0
+                ? sub.getQuestion().getQuestionOrder()
+                : 1;
+
+        List<Submission> allSubs = (studentId != null && setId != null)
+                ? submissionRepository.findByStudentIdAndQuestionQuestionSetId(studentId, setId)
+                : (sub != null ? List.of(sub) : List.of());
+        int totalQuestions = Math.max(1, allSubs.size());
+
+        long alreadyGraded = allSubs.stream()
+                .filter(s -> "GRADED".equalsIgnoreCase(s.getGradingStatus()) || "TEACHER_REVIEWED".equalsIgnoreCase(s.getGradingStatus()))
+                .count();
+
+        int startProgress = totalQuestions > 1
+                ? Math.min(95, 60 + (int) Math.round((alreadyGraded * 35.0) / totalQuestions) + 2)
+                : 75;
+
+        String startMsg = totalQuestions > 1
+                ? "Evaluating Question " + questionOrder + " of " + totalQuestions + " with semantic analysis and AI rubric."
+                : "Evaluating Question " + questionOrder + " with semantic analysis and AI rubric.";
 
         progressBroadcasterService.broadcast(
                 studentEmail,
@@ -54,8 +75,8 @@ public class SubmissionScoringListener {
                         message.submissionId(),
                         setId,
                         "SCORING_IN_PROGRESS",
-                        75,
-                        "Evaluating Question " + questionOrder + " with semantic analysis and AI rubric."
+                        startProgress,
+                        startMsg
                 )
         );
 
@@ -63,15 +84,29 @@ public class SubmissionScoringListener {
             evaluationService.evaluate(message.submissionId());
             log.info("Completed evaluation for submissionId={}", message.submissionId());
 
+            List<Submission> updatedSubs = (studentId != null && setId != null)
+                    ? submissionRepository.findByStudentIdAndQuestionQuestionSetId(studentId, setId)
+                    : (sub != null ? List.of(sub) : List.of());
+            long finishedCount = updatedSubs.stream()
+                    .filter(s -> "GRADED".equalsIgnoreCase(s.getGradingStatus()) || "TEACHER_REVIEWED".equalsIgnoreCase(s.getGradingStatus()))
+                    .count();
+
+            boolean allComplete = totalQuestions <= 1 || finishedCount >= totalQuestions;
+            int completedProgress = allComplete ? 100 : Math.min(95, 60 + (int) Math.round((finishedCount * 35.0) / totalQuestions));
+            String stage = allComplete ? "GRADED" : "SCORING_IN_PROGRESS";
+            String statusMsg = allComplete
+                    ? (totalQuestions > 1 ? "All " + totalQuestions + " questions evaluated and graded successfully." : "Question " + questionOrder + " evaluation completed.")
+                    : "Question " + questionOrder + " of " + totalQuestions + " evaluated. Continuing next question...";
+
             progressBroadcasterService.broadcast(
                     studentEmail,
                     setId,
                     SubmissionProgressEvent.of(
                             message.submissionId(),
                             setId,
-                            "GRADED",
-                            100,
-                            "Question " + questionOrder + " evaluation completed."
+                            stage,
+                            completedProgress,
+                            statusMsg
                     )
             );
         } catch (Exception ex) {
@@ -83,8 +118,8 @@ public class SubmissionScoringListener {
                             message.submissionId(),
                             setId,
                             "FAILED",
-                            75,
-                            "Grading failed: " + ex.getMessage()
+                            startProgress,
+                            "Grading failed for Question " + questionOrder + ": " + ex.getMessage()
                     )
             );
             throw ex; // re-throw to trigger RabbitMQ retry / dead-lettering

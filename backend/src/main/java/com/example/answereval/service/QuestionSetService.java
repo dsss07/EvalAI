@@ -117,8 +117,22 @@ public class QuestionSetService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
         }
 
-        List<QuestionSetDtos.QuestionResponse> questions = questionRepository
-                .findByQuestionSetIdOrderByQuestionOrderAsc(id)
+        List<Question> rawQuestions = questionRepository
+                .findByQuestionSetIdOrderByQuestionOrderAsc(id);
+        boolean reorderNeeded = false;
+        for (int i = 0; i < rawQuestions.size(); i++) {
+            if (rawQuestions.get(i).getQuestionOrder() == null || rawQuestions.get(i).getQuestionOrder() <= 0) {
+                reorderNeeded = true;
+                break;
+            }
+        }
+        if (reorderNeeded) {
+            for (int i = 0; i < rawQuestions.size(); i++) {
+                rawQuestions.get(i).setQuestionOrder(i + 1);
+                questionRepository.save(rawQuestions.get(i));
+            }
+        }
+        List<QuestionSetDtos.QuestionResponse> questions = rawQuestions
                 .stream()
                 .map(this::toQuestionResponse)
                 .toList();
@@ -158,7 +172,10 @@ public class QuestionSetService {
         question.setQuestionText(request.questionText());
         question.setAnswerKey(request.answerKey());
         question.setMaxMarks(request.maxMarks() == null ? 10 : request.maxMarks());
-        question.setQuestionOrder(request.order() == null ? set.getQuestions().size() + 1 : request.order());
+        int order = (request.order() == null || request.order() <= 0)
+                ? (set.getQuestions() == null ? 1 : set.getQuestions().size() + 1)
+                : request.order();
+        question.setQuestionOrder(order);
         question.setRubric(request.rubric());
         return toQuestionResponse(questionRepository.save(question));
     }
@@ -172,7 +189,7 @@ public class QuestionSetService {
         if (request.questionText() != null) question.setQuestionText(request.questionText());
         if (request.answerKey() != null) question.setAnswerKey(request.answerKey());
         if (request.maxMarks() != null) question.setMaxMarks(request.maxMarks());
-        if (request.order() != null) question.setQuestionOrder(request.order());
+        if (request.order() != null) question.setQuestionOrder(request.order() <= 0 ? 1 : request.order());
         if (request.rubric() != null) question.setRubric(request.rubric());
         return toQuestionResponse(question);
     }
@@ -400,13 +417,16 @@ public class QuestionSetService {
     }
 
     public QuestionSetDtos.QuestionResponse toQuestionResponse(Question question) {
+        int order = (question.getQuestionOrder() != null && question.getQuestionOrder() > 0)
+                ? question.getQuestionOrder()
+                : 1;
         return new QuestionSetDtos.QuestionResponse(
                 question.getId(),
                 question.getQuestionSet().getId(),
                 question.getQuestionText(),
                 question.getAnswerKey(),
                 question.getMaxMarks(),
-                question.getQuestionOrder(),
+                order,
                 null,
                 question.getRubric()
         );

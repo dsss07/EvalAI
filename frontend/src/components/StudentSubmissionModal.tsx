@@ -13,6 +13,35 @@ interface Props {
   onSubmissionsUpdated?: (updatedSubs: Submission[]) => void;
 }
 
+// Helpers to reliably retrieve the latest teacher/AI grade by created_at
+function getTeacherGrade(grades?: any[]) {
+  if (!grades || grades.length === 0) return undefined;
+  const teacherGrades = grades.filter(
+    (g) => String(g.grader_type).toLowerCase() === "teacher"
+  );
+  if (teacherGrades.length === 0) return undefined;
+  return [...teacherGrades].sort(
+    (a, b) =>
+      new Date(b.created_at || 0).getTime() -
+      new Date(a.created_at || 0).getTime()
+  )[0];
+}
+
+function getAiGrade(grades?: any[]) {
+  if (!grades || grades.length === 0) return undefined;
+  const aiGrades = grades.filter(
+    (g) => String(g.grader_type).toLowerCase() === "ai"
+  );
+  if (aiGrades.length === 0) return undefined;
+  return [...aiGrades].sort(
+    (a, b) =>
+      new Date(b.created_at || 0).getTime() -
+      new Date(a.created_at || 0).getTime()
+  )[0];
+}
+
+const roundToHalf = (v: number) => Math.round(v * 2) / 2;
+
 export default function StudentSubmissionModal({
   isOpen,
   onClose,
@@ -56,20 +85,29 @@ export default function StudentSubmissionModal({
       const qMax = q ? q.max_marks : 10;
       max += qMax;
 
-      const teacherGrade = s.grades?.find(
-        (g) => String(g.grader_type).toLowerCase() === "teacher"
-      );
-      const aiGrade = s.grades?.find(
-        (g) => String(g.grader_type).toLowerCase() === "ai"
-      );
+      const teacherGrade = getTeacherGrade(s.grades);
+      const aiGrade = getAiGrade(s.grades);
 
       if (teacherGrade) {
-        awarded += teacherGrade.score;
+        awarded += roundToHalf(teacherGrade.score);
       } else if (aiGrade) {
-        awarded += aiGrade.score;
+        awarded += roundToHalf(aiGrade.score);
       }
     });
     return { totalAwarded: awarded, totalMax: max };
+  }, [localSubs, questions]);
+
+  // Sort submissions strictly according to the question set order
+  const sortedSubs = useMemo(() => {
+    return [...localSubs].sort((a, b) => {
+      const qA = questions.find((q) => q.id === a.question_id);
+      const qB = questions.find((q) => q.id === b.question_id);
+      const idxA = questions.findIndex((q) => q.id === a.question_id);
+      const idxB = questions.findIndex((q) => q.id === b.question_id);
+      const orderA = qA?.order && qA.order > 0 ? qA.order : (idxA >= 0 ? idxA + 1 : 999);
+      const orderB = qB?.order && qB.order > 0 ? qB.order : (idxB >= 0 ? idxB + 1 : 999);
+      return orderA - orderB;
+    });
   }, [localSubs, questions]);
 
   // Close on Escape key
@@ -89,8 +127,9 @@ export default function StudentSubmissionModal({
 
   // Grade submission
   const handleSaveGrade = async (subId: string) => {
-    const score = parseFloat(gradeInput.score);
-    if (isNaN(score)) return;
+    const rawScore = parseFloat(gradeInput.score);
+    if (isNaN(rawScore)) return;
+    const score = roundToHalf(rawScore);
 
     setActionLoading(true);
     try {
@@ -102,9 +141,18 @@ export default function StudentSubmissionModal({
         }
       );
 
-      const updated = localSubs.map((s) =>
-        s.id === subId ? { ...s, grades: [...(s.grades || []), newGrade] } : s
-      );
+      const updated = localSubs.map((s) => {
+        if (s.id !== subId) return s;
+        const otherGrades = (s.grades || []).filter(
+          (g) => String(g.grader_type).toLowerCase() !== "teacher"
+        );
+        return {
+          ...s,
+          is_final: true,
+          grading_status: "TEACHER_REVIEWED",
+          grades: [newGrade, ...otherGrades],
+        };
+      });
       setLocalSubs(updated);
       onSubmissionsUpdated?.(updated);
       setGradingSubId(null);
@@ -150,9 +198,19 @@ export default function StudentSubmissionModal({
         `/api/submissions/${subId}/finalize`
       );
 
-      const updated = localSubs.map((s) =>
-        s.id === subId ? { ...s, ...updatedSub, is_final: true } : s
-      );
+      const updated = localSubs.map((s) => {
+        if (s.id !== subId) return s;
+        return {
+          ...s,
+          ...updatedSub,
+          grades:
+            updatedSub.grades && updatedSub.grades.length > 0
+              ? updatedSub.grades
+              : s.grades,
+          is_final: true,
+          grading_status: "FINAL",
+        };
+      });
       setLocalSubs(updated);
       onSubmissionsUpdated?.(updated);
     } catch (err) {
@@ -341,19 +399,23 @@ export default function StudentSubmissionModal({
               </span>
             </div>
 
-            {localSubs.map((sub, i) => {
+            {sortedSubs.map((sub, i) => {
               const matchedQuestion = questions.find(
                 (q) => q.id === sub.question_id
               );
-              const orderNum = matchedQuestion ? matchedQuestion.order : i + 1;
+              const qIndex = questions.findIndex(
+                (q) => q.id === sub.question_id
+              );
+              const orderNum =
+                matchedQuestion?.order && matchedQuestion.order > 0
+                  ? matchedQuestion.order
+                  : qIndex >= 0
+                  ? qIndex + 1
+                  : i + 1;
               const maxMarks = matchedQuestion ? matchedQuestion.max_marks : 10;
 
-              const aiGrade = sub.grades?.find(
-                (g) => String(g.grader_type).toLowerCase() === "ai"
-              );
-              const teacherGrade = sub.grades?.find(
-                (g) => String(g.grader_type).toLowerCase() === "teacher"
-              );
+              const aiGrade = getAiGrade(sub.grades);
+              const teacherGrade = getTeacherGrade(sub.grades);
               const breakdown = aiGrade?.breakdown as
                 | Record<string, any>
                 | undefined;
@@ -459,7 +521,7 @@ export default function StudentSubmissionModal({
                           AI:
                         </span>
                         <span className="text-blue-900 dark:text-blue-200 font-bold">
-                          {aiGrade.score} / {aiGrade.max_score}
+                          {roundToHalf(aiGrade.score)} / {aiGrade.max_score}
                         </span>
                       </div>
                     )}
@@ -470,7 +532,7 @@ export default function StudentSubmissionModal({
                           Teacher:
                         </span>
                         <span className="text-emerald-900 dark:text-emerald-200 font-bold">
-                          {teacherGrade.score} / {teacherGrade.max_score}
+                          {roundToHalf(teacherGrade.score)} / {teacherGrade.max_score}
                         </span>
                       </div>
                     )}
@@ -565,9 +627,9 @@ export default function StudentSubmissionModal({
                           setGradingSubId(sub.id);
                           setGradeInput({
                             score: teacherGrade
-                              ? String(teacherGrade.score)
+                              ? String(roundToHalf(teacherGrade.score))
                               : aiGrade
-                              ? String(aiGrade.score)
+                              ? String(roundToHalf(aiGrade.score))
                               : "",
                             remarks: "",
                           });

@@ -143,14 +143,15 @@ public class GeminiService {
                     Grading Guidelines:
                     1. You are an academic examiner grading strictly against the following Rubric / Marking Scheme.
                     2. Evaluate each criterion independently, awarding partial marks per criterion up to the maximum marks (%.2f).
-                    3. In "feedback", clearly explain any mark deductions criterion-by-criterion, highlighting both what was achieved and what was missing or incorrect.
-                    4. In "missing_concepts", list specific core criteria, keywords, formulas, or principles from the rubric that were omitted or insufficiently addressed. If all criteria are fully satisfied, return an empty array [].
+                    3. Award marks STRICTLY in discrete increments of 0.5 (e.g. 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, etc.). Never award arbitrary or fractional decimals like 1.87, 1.9, or 1.43.
+                    4. In "feedback", clearly explain any mark deductions criterion-by-criterion, highlighting both what was achieved and what was missing or incorrect.
+                    5. In "missing_concepts", list specific core criteria, keywords, formulas, or principles from the rubric that were omitted or insufficiently addressed. If all criteria are fully satisfied, return an empty array [].
                     """.formatted(rubric.trim(), maxMarks);
         } else {
             rubricSection = """
                     Grading Guidelines:
                     1. You are an academic examiner evaluating general conceptual correctness, depth, and clarity against the maximum marks (%.2f).
-                    2. Award fair partial credit for partial accuracy or correct steps and reasoning.
+                    2. Award fair partial credit STRICTLY in discrete increments of 0.5 (e.g. 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, etc.). Never award arbitrary or fractional decimals like 1.87, 1.9, or 1.43.
                     3. In "feedback", provide constructive, actionable, and qualitative feedback explaining strengths and deductions.
                     4. In "missing_concepts", list key concepts, theorems, or steps that were omitted or insufficiently explained. If none are missing, return an empty array [].
                     """.formatted(maxMarks);
@@ -196,7 +197,8 @@ public class GeminiService {
             log.info("Gemini grading returned text ({} chars)", raw.length());
 
             Map<String, Object> json = parseJson(raw);
-            double score = Math.max(0.0, Math.min(maxMarks, toDouble(json.get("score"), 0.0)));
+            double rawScore = toDouble(json.get("score"), 0.0);
+            double score = Math.max(0.0, Math.min(maxMarks, Math.round(rawScore * 2.0) / 2.0));
             String feedback = String.valueOf(json.getOrDefault("feedback", ""));
 
             List<String> missingConcepts = new ArrayList<>();

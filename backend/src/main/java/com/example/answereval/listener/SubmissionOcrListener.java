@@ -100,10 +100,25 @@ public class SubmissionOcrListener {
                 throw new IllegalArgumentException("No file inputs available for OCR");
             }
 
+            // Self-heal question orders if any are 0 or negative
+            boolean reorderNeeded = false;
+            for (int i = 0; i < questions.size(); i++) {
+                if (questions.get(i).getQuestionOrder() == null || questions.get(i).getQuestionOrder() <= 0) {
+                    reorderNeeded = true;
+                    break;
+                }
+            }
+            if (reorderNeeded) {
+                for (int i = 0; i < questions.size(); i++) {
+                    questions.get(i).setQuestionOrder(i + 1);
+                    questionRepository.save(questions.get(i));
+                }
+            }
+
             List<GeminiService.QuestionContext> context = questions.stream()
                     .map(q -> new GeminiService.QuestionContext(
                             q.getId().toString(),
-                            q.getQuestionOrder(),
+                            q.getQuestionOrder() != null && q.getQuestionOrder() > 0 ? q.getQuestionOrder() : 1,
                             q.getQuestionText()
                     ))
                     .toList();

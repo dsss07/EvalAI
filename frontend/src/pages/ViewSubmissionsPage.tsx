@@ -33,6 +33,34 @@ function getAvatarBg(name: string) {
   return AVATAR_BG_COLORS[Math.abs(hash) % AVATAR_BG_COLORS.length];
 }
 
+function getTeacherGrade(grades?: any[]) {
+  if (!grades || grades.length === 0) return undefined;
+  const teacherGrades = grades.filter(
+    (g) => String(g.grader_type).toLowerCase() === "teacher"
+  );
+  if (teacherGrades.length === 0) return undefined;
+  return [...teacherGrades].sort(
+    (a, b) =>
+      new Date(b.created_at || 0).getTime() -
+      new Date(a.created_at || 0).getTime()
+  )[0];
+}
+
+function getAiGrade(grades?: any[]) {
+  if (!grades || grades.length === 0) return undefined;
+  const aiGrades = grades.filter(
+    (g) => String(g.grader_type).toLowerCase() === "ai"
+  );
+  if (aiGrades.length === 0) return undefined;
+  return [...aiGrades].sort(
+    (a, b) =>
+      new Date(b.created_at || 0).getTime() -
+      new Date(a.created_at || 0).getTime()
+  )[0];
+}
+
+const roundToHalf = (v: number) => Math.round(v * 2) / 2;
+
 export default function ViewSubmissionsPage() {
   const { id: setId } = useParams<{ id: string }>();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -122,17 +150,13 @@ export default function ViewSubmissionsPage() {
         if (s.needs_review) hasNeedsReview = true;
         if (!s.is_final) allFinal = false;
 
-        const teacherGrade = s.grades?.find(
-          (g) => String(g.grader_type).toLowerCase() === "teacher"
-        );
-        const aiGrade = s.grades?.find(
-          (g) => String(g.grader_type).toLowerCase() === "ai"
-        );
+        const teacherGrade = getTeacherGrade(s.grades);
+        const aiGrade = getAiGrade(s.grades);
 
         if (teacherGrade) {
-          totalScore += teacherGrade.score;
+          totalScore += roundToHalf(teacherGrade.score);
         } else if (aiGrade) {
-          totalScore += aiGrade.score;
+          totalScore += roundToHalf(aiGrade.score);
         } else {
           allGraded = false;
         }

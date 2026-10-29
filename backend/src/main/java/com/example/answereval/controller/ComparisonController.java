@@ -89,6 +89,8 @@ public class ComparisonController {
             double agreement = ai.isEmpty() ? 0.0 : totalAgreement(ai, teacher, question.getMaxMarks());
 
             Map<String, Object> questionSummary = new LinkedHashMap<>();
+            int qOrder = question.getQuestionOrder() != null && question.getQuestionOrder() > 0 ? question.getQuestionOrder() : (perQuestion.size() + 1);
+            questionSummary.put("question_number", qOrder);
             questionSummary.put("question_id", question.getId());
             questionSummary.put("question_text", question.getQuestionText());
             questionSummary.put("max_marks", question.getMaxMarks());

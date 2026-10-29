@@ -137,9 +137,12 @@ export interface MyResult {
 
 export interface SubmissionProgressEvent {
   submissionId?: string | null;
+  submission_id?: string | null;
   questionSetId?: string | null;
+  question_set_id?: string | null;
   stage: "QUEUED" | "OCR_IN_PROGRESS" | "OCR_COMPLETED" | "SCORING_IN_PROGRESS" | "GRADED" | "FAILED" | string;
-  progressPercentage: number;
+  progressPercentage?: number;
+  progress_percentage?: number;
   message: string;
   timestamp: string;
 }

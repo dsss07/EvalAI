@@ -141,7 +141,7 @@ export default function CreateSetPage() {
           answer_key: q.answer_key,
           rubric: q.rubric || undefined,
           max_marks: q.max_marks,
-          order: i,
+          order: i + 1,
         });
       }
       navigate(`/sets/${qs.id}`);

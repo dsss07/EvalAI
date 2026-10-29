@@ -157,7 +157,7 @@ public class StudentResultService {
     }
 
     private double finalScore(Submission submission) {
-        return submission.getGrades().stream()
+        double rawScore = submission.getGrades().stream()
                 .filter(grade -> grade.getGraderType() == GraderType.TEACHER)
                 .max(Comparator.comparing(Grade::getCreatedAt))
                 .or(() -> submission.getGrades().stream()
@@ -165,5 +165,6 @@ public class StudentResultService {
                         .max(Comparator.comparing(Grade::getCreatedAt)))
                 .map(Grade::getScore)
                 .orElse(0.0);
+        return EvaluationService.roundToHalf(rawScore, submission.getQuestion().getMaxMarks());
     }
 }

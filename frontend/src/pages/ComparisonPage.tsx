@@ -16,6 +16,7 @@ import {
 
 interface QuestionComparison {
   question_id: string;
+  question_number?: number;
   question_text: string;
   max_marks: number;
   total_submissions: number;
@@ -85,14 +86,14 @@ export default function ComparisonPage() {
 
   // Chart data
   const scoreChartData = data.per_question.map((q, i) => ({
-    name: `Q${i + 1}`,
+    name: `Q${q.question_number || i + 1}`,
     Teacher: q.avg_teacher_score,
     AI: q.avg_ai_score,
   }));
 
   const biasChartData = data.per_question
     .map((q, i) => ({
-      name: `Q${i + 1}`,
+      name: `Q${q.question_number || i + 1}`,
       difference: q.avg_difference,
       bias: q.bias,
     }))
@@ -348,7 +349,7 @@ export default function ComparisonPage() {
                         className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors"
                       >
                         <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-semibold text-xs">
-                          Q{i + 1}
+                          Q{q.question_number || i + 1}
                         </td>
                         <td className="px-6 py-4 text-slate-800 dark:text-slate-200 max-w-[220px] truncate font-medium">
                           {q.question_text}

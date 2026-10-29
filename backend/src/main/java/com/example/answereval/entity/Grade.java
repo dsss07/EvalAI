@@ -60,4 +60,5 @@ public class Grade {
     public Map<String, Object> getBreakdown() { return breakdown; }
     public void setBreakdown(Map<String, Object> breakdown) { this.breakdown = breakdown; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
 }

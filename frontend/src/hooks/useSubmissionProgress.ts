@@ -42,18 +42,44 @@ export function useSubmissionProgress(options?: UseSubmissionProgressOptions): U
 
         client.subscribe("/user/queue/submission-progress", (message) => {
           try {
-            const payload: SubmissionProgressEvent = JSON.parse(message.body);
+            const raw: any = JSON.parse(message.body);
 
-            // If a specific submissionId is watched, skip events belonging to another submission
-            if (options?.submissionId && payload.submissionId && payload.submissionId !== options.submissionId) {
-              return;
-            }
-            // If a specific questionSetId is watched, skip events belonging to another set
-            if (options?.questionSetId && payload.questionSetId && payload.questionSetId !== options.questionSetId) {
-              return;
+            const submissionId = raw.submissionId || raw.submission_id || null;
+            const questionSetId = raw.questionSetId || raw.question_set_id || null;
+            const rawProgress = raw.progressPercentage ?? raw.progress_percentage;
+            const parsedProgress =
+              typeof rawProgress === "number"
+                ? rawProgress
+                : parseFloat(rawProgress);
+            const progressPercentage = !isNaN(parsedProgress)
+              ? parsedProgress
+              : 10;
+
+            const normalized: SubmissionProgressEvent = {
+              submissionId,
+              submission_id: submissionId,
+              questionSetId,
+              question_set_id: questionSetId,
+              stage: raw.stage || "QUEUED",
+              progressPercentage,
+              progress_percentage: progressPercentage,
+              message: raw.message || "",
+              timestamp: raw.timestamp || new Date().toISOString(),
+            };
+
+            // If questionSetId is specified, match on questionSetId (allowing all questions in this exam)
+            if (options?.questionSetId) {
+              if (questionSetId && questionSetId !== options.questionSetId) {
+                return;
+              }
+            } else if (options?.submissionId) {
+              // Otherwise, if only submissionId is specified, match on submissionId
+              if (submissionId && submissionId !== options.submissionId) {
+                return;
+              }
             }
 
-            setEvent(payload);
+            setEvent(normalized);
           } catch (err) {
             console.error("Failed to parse submission progress payload", err);
           }

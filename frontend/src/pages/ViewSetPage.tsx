@@ -498,7 +498,7 @@ export default function ViewSetPage() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
-                      Question {i + 1}
+                      Question {q.order && q.order > 0 ? q.order : i + 1}
                     </span>
                     <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                       {q.max_marks} Marks

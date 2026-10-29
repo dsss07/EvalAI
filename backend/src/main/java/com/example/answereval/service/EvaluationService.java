@@ -66,7 +66,7 @@ public class EvaluationService {
         );
         double localScore = localResult == null
                 ? basicLocalScore(studentAnswer, answerKey, maxMarks)
-                : localResult.score();
+                : roundToHalf(localResult.score(), maxMarks);
 
         GeminiService.GradingResult aiResult = geminiService.grade(
                 question.getQuestionText(), question.getRubric(), studentAnswer, maxMarks, mode
@@ -76,8 +76,8 @@ public class EvaluationService {
         String gradingMethod = "local";
         double llmWeight = LLM_WEIGHTS.getOrDefault(mode, 0.50);
         if (aiResult != null) {
-            finalScore = round2((llmWeight * aiResult.score()) + ((1.0 - llmWeight) * localScore));
-            finalScore = Math.max(0.0, Math.min(maxMarks, finalScore));
+            double blended = (llmWeight * aiResult.score()) + ((1.0 - llmWeight) * localScore);
+            finalScore = roundToHalf(blended, maxMarks);
             gradingMethod = "blended";
         }
 
@@ -90,7 +90,7 @@ public class EvaluationService {
 
         Map<String, Object> breakdown = new HashMap<>();
         breakdown.put("grading_method", gradingMethod);
-        breakdown.put("local_score", round2(localScore));
+        breakdown.put("local_score", localScore);
         breakdown.put("llm_available", aiResult != null);
         if (localResult != null) {
             breakdown.put("similarity_score", localResult.similarityScore());
@@ -103,7 +103,7 @@ public class EvaluationService {
             breakdown.put("local_scoring_fallback", "basic_keyword_overlap");
         }
         if (aiResult != null) {
-            breakdown.put("llm_score", aiResult.score());
+            breakdown.put("llm_score", roundToHalf(aiResult.score(), maxMarks));
             breakdown.put("llm_weight", llmWeight);
             breakdown.put("feedback", aiResult.feedback());
             breakdown.put("missing_concepts", aiResult.missingConcepts());
@@ -149,7 +149,12 @@ public class EvaluationService {
         long matched = java.util.Arrays.stream(expectedTerms)
                 .filter(term -> term.length() >= 4 && answer.contains(term))
                 .distinct().count();
-        return Math.min(maxMarks, round2(matched * maxMarks / usable));
+        return roundToHalf((double) matched * maxMarks / (double) usable, maxMarks);
+    }
+
+    public static double roundToHalf(double value, double maxMarks) {
+        double rounded = Math.round(value * 2.0) / 2.0;
+        return Math.max(0.0, Math.min(maxMarks, rounded));
     }
 
     private double round2(double value) {

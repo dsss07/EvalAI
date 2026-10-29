@@ -218,9 +218,9 @@ export default function FullScriptReview({
                       }
                       className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     >
-                      {questions.map((q) => (
+                      {questions.map((q, idx) => (
                         <option key={q.id} value={q.id}>
-                          Q{q.order}: {q.question_text.substring(0, 45)}...
+                          Q{q.order && q.order > 0 ? q.order : idx + 1}: {q.question_text.substring(0, 45)}...
                         </option>
                       ))}
                     </select>

@@ -391,7 +391,7 @@ export default function MyResultsPage() {
                         </span>
                         <div className="flex items-baseline gap-1.5 mt-0.5">
                           <span className="text-2xl font-extrabold text-slate-900 dark:text-white">
-                            {r.total_score}
+                            {Math.round(r.total_score * 2) / 2}
                           </span>
                           <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                             / {r.max_score} marks
@@ -655,7 +655,7 @@ export default function MyResultsPage() {
                     Total Score
                   </p>
                   <p className="text-lg font-extrabold text-blue-900 dark:text-blue-100">
-                    {selectedDescriptiveResult.total_score}
+                    {Math.round(selectedDescriptiveResult.total_score * 2) / 2}
                     <span className="text-xs text-blue-500 font-medium">
                       {" "}/ {selectedDescriptiveResult.max_score}
                     </span>
@@ -701,7 +701,7 @@ export default function MyResultsPage() {
                         </h4>
                       </div>
                       <div className={`px-3 py-1.5 rounded-full text-xs font-bold border shrink-0 ${badgeClass}`}>
-                        {ans.score_awarded} / {ans.max_marks} Marks
+                        {Math.round(ans.score_awarded * 2) / 2} / {ans.max_marks} Marks
                       </div>
                     </div>
 

@@ -137,7 +137,7 @@ def grade_local(request: LocalGradeRequest):
     cfg = MODE_CONFIG[mode]
     keyword_score = ratio * (0.5 if mode == "hard" and ratio < cfg["keyword_min_ratio"] else 1.0)
     raw_score = cfg["similarity_weight"] * similarity + cfg["keyword_weight"] * keyword_score
-    score = round(max(0.0, min(max_marks, raw_score * max_marks)), 2)
+    score = round(round(max(0.0, min(max_marks, raw_score * max_marks)) * 2) / 2, 1)
     return LocalGradeResponse(
         score=score, max_score=max_marks, similarity_score=round(similarity, 4),
         keywords=keywords, keywords_matched=matched, keywords_missed=missed,

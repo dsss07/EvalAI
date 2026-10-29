@@ -1,6 +1,6 @@
 spring:
     rabbitmq:
-        addresses: $
+        addresses: 
         listener:
             simple:
                 retry:
@@ -24,9 +24,9 @@ spring:
                         enable: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:true}
 
     datasource:
-        url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/answer_eval}
+        url: 
         username:
-        password:
+        password: 
         driver-class-name: org.postgresql.Driver
 
     jpa:
